@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>可愛貓咪遊戲樂園</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    font-family: "Comic Sans MS", "Microsoft JhengHei", "PingFang TC", sans-serif;
+    background: linear-gradient(135deg, #ffe5ec 0%, #fff0f5 50%, #e8f5ff 100%);
+    color: #5a3d4a;
+    overflow: hidden;
+  }
+  #app {
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  /* 飄浮的肉球背景裝飾 */
+  .paw-bg {
+    position: absolute;
+    font-size: 28px;
+    opacity: 0.25;
+    animation: float 10s ease-in-out infinite;
+    pointer-events: none;
+    user-select: none;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(-10deg); }
+    50% { transform: translateY(-30px) rotate(10deg); }
+  }
+
+  /* ====== 主選單 ====== */
+  #menu {
+    text-align: center;
+    z-index: 2;
+    padding: 20px;
+  }
+  #menu h1 {
+    font-size: 48px;
+    color: #ff7aa8;
+    text-shadow: 3px 3px 0 #fff, 6px 6px 0 #ffd0e0;
+    margin-bottom: 8px;
+    letter-spacing: 4px;
+  }
+  #menu .subtitle {
+    color: #b07a8e;
+    margin-bottom: 30px;
+    font-size: 16px;
+  }
+  .menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    max-width: 720px;
+  }
+  .menu-card {
+    background: #fff;
+    border: 4px solid #ffb6c1;
+    border-radius: 24px;
+    padding: 24px 20px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 6px 0 #ffb6c1;
+    user-select: none;
+  }
+  .menu-card:hover {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 10px 0 #ff8caa;
+    background: #fffafc;
+  }
+  .menu-card:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #ffb6c1;
+  }
+  .menu-card .icon { font-size: 56px; line-height: 1; }
+  .menu-card .name {
+    font-size: 22px;
+    color: #ff5e8a;
+    font-weight: bold;
+    margin: 10px 0 6px;
+  }
+  .menu-card .desc { font-size: 13px; color: #8a6677; }
+
+  /* ====== 遊戲畫面共用 ====== */
+  .game-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    z-index: 2;
+  }
+  .game-screen.active { display: flex; }
+  .game-header {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 0 8px;
+  }
+  .back-btn {
+    background: #fff;
+    border: 3px solid #ff8caa;
+    color: #ff5e8a;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 15px;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 3px 0 #ff8caa;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .back-btn:hover { background: #fff0f5; transform: translateY(-1px); }
+  .back-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #ff8caa; }
+  .score-display {
+    background: #fff;
+    border: 3px solid #ffb6c1;
+    border-radius: 20px;
+    padding: 8px 20px;
+    font-size: 16px;
+    color: #ff5e8a;
+    font-weight: bold;
+    box-shadow: 0 3px 0 #ffb6c1;
+  }
+  canvas {
+    background: #fff8fb;
+    border: 5px solid #ffb6c1;
+    border-radius: 20px;
+    box-shadow: 0 8px 20px rgba(255, 122, 168, 0.2);
+    display: block;
+    max-width: 100%;
+    max-height: 75vh;
+  }
+  .game-hint {
+    margin-top: 10px;
+    color: #8a6677;
+    font-size: 14px;
+    text-align: center;
+  }
+
+  /* ====== 撫摸貓咪 ====== */
+  #petGame .pet-area {
+    background: #fff;
+    border: 5px solid #ffb6c1;
+    border-radius: 20px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 8px 20px rgba(255, 122, 168, 0.2);
+    width: 90%;
+    max-width: 480px;
+  }
+  .cat-display {
+    font-size: 140px;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.1s;
+    line-height: 1;
+    margin: 10px 0;
+  }
+  .cat-display:hover { transform: scale(1.05); }
+  .cat-display.pet-bounce { animation: petBounce 0.2s; }
+  @keyframes petBounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15) rotate(-5deg); }
+  }
+  .heart-float {
+    position: absolute;
+    font-size: 28px;
+    pointer-events: none;
+    animation: floatUp 1.2s ease-out forwards;
+    z-index: 10;
+  }
+  @keyframes floatUp {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-150px) scale(1.6); opacity: 0; }
+  }
+  .upgrade-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .upgrade-btn {
+    background: #fff5f8;
+    border: 3px solid #ffb6c1;
+    border-radius: 14px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #ff5e8a;
+    font-weight: bold;
+    box-shadow: 0 3px 0 #ffb6c1;
+    transition: all 0.15s;
+    font-family: inherit;
+    min-width: 130px;
+  }
+  .upgrade-btn:hover:not(:disabled) { background: #fff; transform: translateY(-2px); }
+  .upgrade-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #ffb6c1; }
+  .upgrade-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .upgrade-btn .small { display: block; font-size: 11px; color: #8a6677; font-weight: normal; margin-top: 2px; }
+
+  /* ====== 記憶配對 ====== */
+  #memoryGame .memory-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    background: #fff;
+    padding: 16px;
+    border: 5px solid #ffb6c1;
+    border-radius: 20px;
+    box-shadow: 0 8px 20px rgba(255, 122, 168, 0.2);
+  }
+  .mem-card {
+    width: 80px;
+    height: 80px;
+    background: #ff8caa;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44px;
+    cursor: pointer;
+    transition: transform 0.3s, background 0.3s;
+    user-select: none;
+    border: 3px solid #ff5e8a;
+    transform-style: preserve-3d;
+  }
+  .mem-card.flipped {
+    background: #fffafc;
+    transform: rotateY(180deg);
+  }
+  .mem-card.flipped .face { transform: rotateY(180deg); }
+  .mem-card.matched {
+    background: #c5f0d4;
+    border-color: #6ec98a;
+    cursor: default;
+  }
+  .mem-card .face {
+    display: none;
+  }
+  .mem-card.flipped .face,
+  .mem-card.matched .face {
+    display: block;
+    transform: rotateY(180deg);
+  }
+  .mem-card.matched .face { transform: none; }
+  .mem-card:not(.flipped):not(.matched):hover {
+    background: #ff5e8a;
+  }
+
+  /* ====== 勝利畫面 ====== */
+  .overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255, 230, 240, 0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    border-radius: 20px;
+  }
+  .overlay.show { display: flex; }
+  .overlay-content {
+    background: #fff;
+    padding: 30px 40px;
+    border-radius: 24px;
+    border: 5px solid #ff8caa;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  }
+  .overlay-content h2 {
+    color: #ff5e8a;
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+  .overlay-content p { color: #8a6677; margin-bottom: 20px; }
+  .overlay-content button {
+    background: #ff8caa;
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 20px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 4px 0 #ff5e8a;
+    font-family: inherit;
+    margin: 0 6px;
+  }
+  .overlay-content button:active { transform: translateY(2px); box-shadow: 0 2px 0 #ff5e8a; }
+
+  @media (max-width: 600px) {
+    #menu h1 { font-size: 32px; }
+    .menu-grid { grid-template-columns: 1fr; }
+    .menu-card .icon { font-size: 44px; }
+    .mem-card { width: 60px; height: 60px; font-size: 32px; }
+    .cat-display { font-size: 100px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 背景肉球裝飾 -->
+  <div class="paw-bg" style="top:8%; left:6%; animation-delay:0s;">🐾</div>
+  <div class="paw-bg" style="top:20%; right:8%; animation-delay:2s;">🐾</div>
+  <div class="paw-bg" style="bottom:15%; left:12%; animation-delay:4s;">🐾</div>
+  <div class="paw-bg" style="bottom:8%; right:14%; animation-delay:6s;">🐾</div>
+  <div class="paw-bg" style="top:50%; left:3%; animation-delay:3s;">🌸</div>
+  <div class="paw-bg" style="top:60%; right:4%; animation-delay:1s;">🌸</div>
+
+  <!-- 主選單 -->
+  <div id="menu">
+    <h1>🐱 貓咪遊戲樂園 🐱</h1>
+    <div class="subtitle">選一個喜歡的小遊戲開始玩吧～</div>
+    <div class="menu-grid">
+      <div class="menu-card" onclick="showGame('feedGame'); startFeedGame();">
+        <div class="icon">🐟</div>
+        <div class="name">餵食貓咪</div>
+        <div class="desc">移動貓咪接住掉下來的美味食物</div>
+      </div>
+      <div class="menu-card" onclick="showGame('petGame'); startPetGame();">
+        <div class="icon">💖</div>
+        <div class="name">撫摸貓咪</div>
+        <div class="desc">點擊貓咪累積愛心，解鎖更多貓貓</div>
+      </div>
+      <div class="menu-card" onclick="showGame('jumpGame'); startJumpGame();">
+        <div class="icon">📦</div>
+        <div class="name">貓咪跳躍</div>
+        <div class="desc">按空白鍵跳過障礙物跑越遠越好</div>
+      </div>
+      <div class="menu-card" onclick="showGame('memoryGame'); startMemoryGame();">
+        <div class="icon">🃏</div>
+        <div class="name">找出貓咪</div>
+        <div class="desc">翻牌配對找出相同的貓咪表情</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 餵食貓咪 -->
+  <div id="feedGame" class="game-screen">
+    <div class="game-header">
+      <button class="back-btn" onclick="stopFeedGame(); showMenu();">← 回主選單</button>
+      <div class="score-display">分數: <span id="feedScore">0</span> | ❤️ <span id="feedLives">3</span></div>
+    </div>
+    <canvas id="feedCanvas" width="600" height="500"></canvas>
+    <div class="game-hint">← → 方向鍵移動 (或滑鼠移動)。接到 🐟🍣🥛 加分，碰到 🥾💣 扣血！</div>
+    <div class="overlay" id="feedOver">
+      <div class="overlay-content">
+        <h2 id="feedOverTitle">遊戲結束！</h2>
+        <p>最後分數: <span id="feedFinal">0</span><br>最高分: <span id="feedBest">0</span></p>
+        <button onclick="startFeedGame()">再玩一次</button>
+        <button onclick="stopFeedGame(); showMenu();">回主選單</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 撫摸貓咪 -->
+  <div id="petGame" class="game-screen">
+    <div class="game-header">
+      <button class="back-btn" onclick="showMenu();">← 回主選單</button>
+      <div class="score-display">❤️ <span id="petHearts">0</span> | 每次+<span id="petPower">1</span></div>
+    </div>
+    <div class="pet-area">
+      <div style="color:#b07a8e; font-size:14px;">當前夥伴</div>
+      <div class="cat-display" id="catDisplay" onclick="petCat(event)">🐱</div>
+      <div style="color:#ff5e8a; font-weight:bold;" id="catName">小花</div>
+      <div class="upgrade-row" id="upgradeRow"></div>
+    </div>
+    <div class="game-hint">點擊貓咪累積愛心，購買升級或解鎖新的貓咪夥伴！</div>
+  </div>
+
+  <!-- 貓咪跳躍 -->
+  <div id="jumpGame" class="game-screen">
+    <div class="game-header">
+      <button class="back-btn" onclick="stopJumpGame(); showMenu();">← 回主選單</button>
+      <div class="score-display">距離: <span id="jumpScore">0</span> | 🏆 <span id="jumpBest">0</span></div>
+    </div>
+    <canvas id="jumpCanvas" width="700" height="280"></canvas>
+    <div class="game-hint">按 [空白鍵] 或 [點擊畫面] 讓貓咪跳躍，躲開障礙物！</div>
+    <div class="overlay" id="jumpOver">
+      <div class="overlay-content">
+        <h2>哎呀，撞到了！</h2>
+        <p>本次距離: <span id="jumpFinal">0</span><br>最佳紀錄: <span id="jumpBestFinal">0</span></p>
+        <button onclick="startJumpGame()">再來一次</button>
+        <button onclick="stopJumpGame(); showMenu();">回主選單</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 找出貓咪 (記憶配對) -->
+  <div id="memoryGame" class="game-screen">
+    <div class="game-header">
+      <button class="back-btn" onclick="showMenu();">← 回主選單</button>
+      <div class="score-display">步數: <span id="memMoves">0</span> | 配對: <span id="memMatched">0</span>/8</div>
+    </div>
+    <div class="memory-grid" id="memGrid"></div>
+    <div class="game-hint">點兩張卡片，配對相同的貓咪表情！</div>
+    <div class="overlay" id="memOver">
+      <div class="overlay-content">
+        <h2>🎉 全部找到了！</h2>
+        <p>總共用了 <span id="memFinalMoves">0</span> 步<br>最佳紀錄: <span id="memBest">-</span> 步</p>
+        <button onclick="startMemoryGame()">再玩一次</button>
+        <button onclick="showMenu();">回主選單</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ========== 通用 ========== */
+const screens = ['feedGame', 'petGame', 'jumpGame', 'memoryGame'];
+function showMenu() {
+  document.getElementById('menu').style.display = 'block';
+  screens.forEach(id => document.getElementById(id).classList.remove('active'));
+  closeAllOverlays();
+}
+function showGame(id) {
+  document.getElementById('menu').style.display = 'none';
+  screens.forEach(s => document.getElementById(s).classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  closeAllOverlays();
+}
+function closeAllOverlays() {
+  document.querySelectorAll('.overlay').forEach(o => o.classList.remove('show'));
+}
+function saveBest(key, val) {
+  const cur = +(localStorage.getItem(key) || 0);
+  if (val > cur) localStorage.setItem(key, val);
+  return Math.max(cur, val);
+}
+function getBest(key) { return +(localStorage.getItem(key) || 0); }
+
+/* ========== 1. 餵食貓咪 ========== */
+const feedCanvas = document.getElementById('feedCanvas');
+const fctx = feedCanvas.getContext('2d');
+let feedState = null;
+
+function startFeedGame() {
+  closeAllOverlays();
+  feedState = {
+    cat: { x: feedCanvas.width / 2, y: feedCanvas.height - 60, w: 80, h: 60, vx: 0 },
+    items: [],
+    score: 0,
+    lives: 3,
+    spawnTimer: 0,
+    spawnRate: 50,
+    keys: {},
+    running: true,
+    sparkles: []
+  };
+  document.getElementById('feedScore').textContent = '0';
+  document.getElementById('feedLives').textContent = '3';
+  requestAnimationFrame(feedLoop);
+}
+function stopFeedGame() { if (feedState) feedState.running = false; }
+
+window.addEventListener('keydown', e => {
+  if (feedState && feedState.running) feedState.keys[e.key] = true;
+});
+window.addEventListener('keyup', e => {
+  if (feedState) feedState.keys[e.key] = false;
+});
+feedCanvas.addEventListener('mousemove', e => {
+  if (!feedState || !feedState.running) return;
+  const rect = feedCanvas.getBoundingClientRect();
+  const scale = feedCanvas.width / rect.width;
+  feedState.cat.x = (e.clientX - rect.left) * scale;
+});
+feedCanvas.addEventListener('touchmove', e => {
+  if (!feedState || !feedState.running) return;
+  e.preventDefault();
+  const rect = feedCanvas.getBoundingClientRect();
+  const scale = feedCanvas.width / rect.width;
+  feedState.cat.x = (e.touches[0].clientX - rect.left) * scale;
+}, { passive: false });
+
+const goodItems = [
+  { emoji: '🐟', points: 10 },
+  { emoji: '🍣', points: 15 },
+  { emoji: '🥛', points: 8 },
+  { emoji: '🍗', points: 12 },
+];
+const badItems = [
+  { emoji: '🥾' },
+  { emoji: '💣' },
+  { emoji: '🧦' },
+];
+
+function feedLoop() {
+  if (!feedState || !feedState.running) return;
+  const s = feedState;
+
+  // 鍵盤控制
+  if (s.keys['ArrowLeft'] || s.keys['a']) s.cat.x -= 6;
+  if (s.keys['ArrowRight'] || s.keys['d']) s.cat.x += 6;
+  s.cat.x = Math.max(s.cat.w/2, Math.min(feedCanvas.width - s.cat.w/2, s.cat.x));
+
+  // 生成物品
+  s.spawnTimer++;
+  if (s.spawnTimer >= s.spawnRate) {
+    s.spawnTimer = 0;
+    const isGood = Math.random() < 0.75;
+    const pool = isGood ? goodItems : badItems;
+    const item = pool[Math.floor(Math.random() * pool.length)];
+    s.items.push({
+      x: 30 + Math.random() * (feedCanvas.width - 60),
+      y: -30,
+      vy: 2 + Math.random() * 2 + s.score * 0.005,
+      emoji: item.emoji,
+      good: isGood,
+      points: item.points || 0,
+      rot: 0,
+      vrot: (Math.random() - 0.5) * 0.1
+    });
+    s.spawnRate = Math.max(20, 50 - s.score * 0.05);
+  }
+
+  // 更新物品
+  for (let i = s.items.length - 1; i >= 0; i--) {
+    const it = s.items[i];
+    it.y += it.vy;
+    it.rot += it.vrot;
+
+    // 碰撞檢測 (貓嘴附近)
+    const catLeft = s.cat.x - s.cat.w/2;
+    const catRight = s.cat.x + s.cat.w/2;
+    const catTop = s.cat.y - s.cat.h/2;
+    if (it.y > catTop && it.y < catTop + s.cat.h && it.x > catLeft && it.x < catRight) {
+      if (it.good) {
+        s.score += it.points;
+        for (let k = 0; k < 8; k++) {
+          s.sparkles.push({ x: it.x, y: it.y, vx: (Math.random()-0.5)*4, vy: -Math.random()*3-1, life: 30, color: '#ff8caa' });
+        }
+      } else {
+        s.lives--;
+        for (let k = 0; k < 10; k++) {
+          s.sparkles.push({ x: it.x, y: it.y, vx: (Math.random()-0.5)*5, vy: -Math.random()*3-1, life: 30, color: '#888' });
+        }
+        if (s.lives <= 0) return feedGameOver();
+      }
+      document.getElementById('feedScore').textContent = s.score;
+      document.getElementById('feedLives').textContent = s.lives;
+      s.items.splice(i, 1);
+    } else if (it.y > feedCanvas.height + 30) {
+      s.items.splice(i, 1);
+    }
+  }
+
+  // 更新粒子
+  for (let i = s.sparkles.length - 1; i >= 0; i--) {
+    const p = s.sparkles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life--;
+    if (p.life <= 0) s.sparkles.splice(i, 1);
+  }
+
+  // 繪製
+  fctx.clearRect(0, 0, feedCanvas.width, feedCanvas.height);
+
+  // 雲朵裝飾
+  fctx.fillStyle = 'rgba(255,255,255,0.7)';
+  for (let i = 0; i < 3; i++) {
+    const cx = (i * 220 + Date.now() / 100) % (feedCanvas.width + 100) - 50;
+    fctx.beginPath();
+    fctx.arc(cx, 50 + i * 20, 25, 0, Math.PI * 2);
+    fctx.arc(cx + 25, 50 + i * 20, 30, 0, Math.PI * 2);
+    fctx.arc(cx + 55, 50 + i * 20, 22, 0, Math.PI * 2);
+    fctx.fill();
+  }
+
+  // 地面
+  fctx.fillStyle = '#c5f0d4';
+  fctx.fillRect(0, feedCanvas.height - 20, feedCanvas.width, 20);
+  fctx.fillStyle = '#a5e0b4';
+  for (let i = 0; i < feedCanvas.width; i += 30) {
+    fctx.fillRect(i, feedCanvas.height - 22, 3, 6);
+  }
+
+  // 物品
+  fctx.font = '34px serif';
+  fctx.textAlign = 'center';
+  fctx.textBaseline = 'middle';
+  s.items.forEach(it => {
+    fctx.save();
+    fctx.translate(it.x, it.y);
+    fctx.rotate(it.rot);
+    fctx.fillText(it.emoji, 0, 0);
+    fctx.restore();
+  });
+
+  // 粒子
+  s.sparkles.forEach(p => {
+    fctx.fillStyle = p.color;
+    fctx.globalAlpha = p.life / 30;
+    fctx.beginPath();
+    fctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    fctx.fill();
+  });
+  fctx.globalAlpha = 1;
+
+  // 貓咪
+  fctx.font = '56px serif';
+  fctx.fillText('🐱', s.cat.x, s.cat.y);
+
+  requestAnimationFrame(feedLoop);
+}
+
+function feedGameOver() {
+  feedState.running = false;
+  const best = saveBest('feedBest', feedState.score);
+  document.getElementById('feedFinal').textContent = feedState.score;
+  document.getElementById('feedBest').textContent = best;
+  document.getElementById('feedOver').classList.add('show');
+}
+
+/* ========== 2. 撫摸貓咪 ========== */
+const cats = [
+  { emoji: '🐱', name: '小花', cost: 0 },
+  { emoji: '😺', name: '阿橘', cost: 100 },
+  { emoji: '😸', name: '咪咪', cost: 500 },
+  { emoji: '😻', name: '愛心醬', cost: 2000 },
+  { emoji: '🙀', name: '驚訝弟', cost: 5000 },
+  { emoji: '😼', name: '壞壞', cost: 15000 },
+  { emoji: '😽', name: '親親妹', cost: 40000 },
+  { emoji: '🐈‍⬛', name: '小黑', cost: 100000 },
+];
+let petData = null;
+
+function loadPetData() {
+  const saved = localStorage.getItem('petData');
+  if (saved) {
+    petData = JSON.parse(saved);
+  } else {
+    petData = { hearts: 0, power: 1, powerCost: 50, owned: [0], current: 0 };
+  }
+}
+function savePetData() { localStorage.setItem('petData', JSON.stringify(petData)); }
+
+function startPetGame() {
+  loadPetData();
+  renderPet();
+}
+function renderPet() {
+  const c = cats[petData.current];
+  document.getElementById('catDisplay').textContent = c.emoji;
+  document.getElementById('catName').textContent = c.name;
+  document.getElementById('petHearts').textContent = formatNum(petData.hearts);
+  document.getElementById('petPower').textContent = petData.power;
+
+  // 升級按鈕
+  const row = document.getElementById('upgradeRow');
+  row.innerHTML = '';
+
+  // 升級按鈕：增加每次點擊力
+  const upBtn = document.createElement('button');
+  upBtn.className = 'upgrade-btn';
+  upBtn.innerHTML = `升級撫摸力<span class="small">${formatNum(petData.powerCost)} ❤️ → +1</span>`;
+  upBtn.disabled = petData.hearts < petData.powerCost;
+  upBtn.onclick = () => {
+    if (petData.hearts >= petData.powerCost) {
+      petData.hearts -= petData.powerCost;
+      petData.power++;
+      petData.powerCost = Math.floor(petData.powerCost * 1.6);
+      savePetData(); renderPet();
+    }
+  };
+  row.appendChild(upBtn);
+
+  // 解鎖貓咪按鈕 (下一隻未擁有的)
+  const nextLocked = cats.findIndex((c, i) => !petData.owned.includes(i));
+  if (nextLocked !== -1) {
+    const cat = cats[nextLocked];
+    const btn = document.createElement('button');
+    btn.className = 'upgrade-btn';
+    btn.innerHTML = `解鎖 ${cat.emoji} ${cat.name}<span class="small">${formatNum(cat.cost)} ❤️</span>`;
+    btn.disabled = petData.hearts < cat.cost;
+    btn.onclick = () => {
+      if (petData.hearts >= cat.cost) {
+        petData.hearts -= cat.cost;
+        petData.owned.push(nextLocked);
+        petData.current = nextLocked;
+        savePetData(); renderPet();
+      }
+    };
+    row.appendChild(btn);
+  }
+
+  // 切換貓咪按鈕
+  if (petData.owned.length > 1) {
+    const swBtn = document.createElement('button');
+    swBtn.className = 'upgrade-btn';
+    swBtn.innerHTML = `🔄 切換夥伴<span class="small">已擁有 ${petData.owned.length} 隻</span>`;
+    swBtn.onclick = () => {
+      const idx = petData.owned.indexOf(petData.current);
+      petData.current = petData.owned[(idx + 1) % petData.owned.length];
+      savePetData(); renderPet();
+    };
+    row.appendChild(swBtn);
+  }
+}
+
+function petCat(event) {
+  petData.hearts += petData.power;
+  savePetData();
+  document.getElementById('petHearts').textContent = formatNum(petData.hearts);
+
+  // 動畫
+  const cd = document.getElementById('catDisplay');
+  cd.classList.remove('pet-bounce');
+  void cd.offsetWidth;
+  cd.classList.add('pet-bounce');
+
+  // 飄浮愛心
+  const heart = document.createElement('div');
+  heart.className = 'heart-float';
+  heart.textContent = ['❤️','💖','💕','💗','💝'][Math.floor(Math.random()*5)];
+  heart.style.left = (event.clientX - 14) + 'px';
+  heart.style.top = (event.clientY - 14) + 'px';
+  heart.style.position = 'fixed';
+  document.body.appendChild(heart);
+  setTimeout(() => heart.remove(), 1200);
+
+  // 按鈕可用性即時更新
+  renderUpgradeButtonsOnly();
+}
+function renderUpgradeButtonsOnly() {
+  document.querySelectorAll('#upgradeRow .upgrade-btn').forEach(btn => {
+    // 簡單做法：重渲染整個按鈕區
+  });
+  renderPet();
+}
+
+function formatNum(n) {
+  if (n < 1000) return n;
+  if (n < 1000000) return (n/1000).toFixed(1).replace(/\.0$/, '') + 'K';
+  return (n/1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+}
+
+/* ========== 3. 貓咪跳躍 ========== */
+const jumpCanvas = document.getElementById('jumpCanvas');
+const jctx = jumpCanvas.getContext('2d');
+let jumpState = null;
+
+function startJumpGame() {
+  closeAllOverlays();
+  jumpState = {
+    cat: { x: 80, y: jumpCanvas.height - 60, vy: 0, jumping: false, jumpsLeft: 2 },
+    obstacles: [],
+    clouds: [{x:100,y:50},{x:350,y:80},{x:600,y:40}],
+    speed: 6,
+    distance: 0,
+    spawnTimer: 60,
+    running: true,
+    groundY: jumpCanvas.height - 40
+  };
+  document.getElementById('jumpScore').textContent = '0';
+  document.getElementById('jumpBest').textContent = getBest('jumpBest');
+  requestAnimationFrame(jumpLoop);
+}
+function stopJumpGame() { if (jumpState) jumpState.running = false; }
+
+function doJump() {
+  if (!jumpState || !jumpState.running) return;
+  if (jumpState.cat.jumpsLeft > 0) {
+    jumpState.cat.vy = -13;
+    jumpState.cat.jumping = true;
+    jumpState.cat.jumpsLeft--;
+  }
+}
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space' && jumpState && jumpState.running) {
+    e.preventDefault();
+    doJump();
+  }
+});
+jumpCanvas.addEventListener('mousedown', doJump);
+jumpCanvas.addEventListener('touchstart', e => { e.preventDefault(); doJump(); }, { passive: false });
+
+const obstacleEmojis = ['📦', '🪴', '🌵', '🗑️', '🧱'];
+
+function jumpLoop() {
+  if (!jumpState || !jumpState.running) return;
+  const s = jumpState;
+
+  s.distance++;
+  s.speed = 6 + s.distance * 0.002;
+
+  // 貓咪物理
+  s.cat.vy += 0.6;
+  s.cat.y += s.cat.vy;
+  if (s.cat.y >= s.groundY - 30) {
+    s.cat.y = s.groundY - 30;
+    s.cat.vy = 0;
+    s.cat.jumping = false;
+    s.cat.jumpsLeft = 2;
+  }
+
+  // 生成障礙
+  s.spawnTimer--;
+  if (s.spawnTimer <= 0) {
+    s.obstacles.push({
+      x: jumpCanvas.width + 20,
+      y: s.groundY - 30,
+      emoji: obstacleEmojis[Math.floor(Math.random()*obstacleEmojis.length)],
+      w: 36
+    });
+    s.spawnTimer = 60 + Math.random() * 80 - Math.min(30, s.distance * 0.02);
+  }
+
+  // 更新障礙 & 碰撞
+  for (let i = s.obstacles.length - 1; i >= 0; i--) {
+    const o = s.obstacles[i];
+    o.x -= s.speed;
+    if (o.x < -50) { s.obstacles.splice(i, 1); continue; }
+    // 碰撞 (簡化矩形)
+    const cx = s.cat.x, cy = s.cat.y;
+    if (Math.abs(cx - o.x) < 28 && Math.abs(cy - o.y) < 28) {
+      return jumpGameOver();
+    }
+  }
+
+  // 雲朵
+  s.clouds.forEach(c => {
+    c.x -= s.speed * 0.3;
+    if (c.x < -50) c.x = jumpCanvas.width + 50;
+  });
+
+  // 繪製
+  jctx.clearRect(0, 0, jumpCanvas.width, jumpCanvas.height);
+
+  // 天空漸層
+  const grad = jctx.createLinearGradient(0, 0, 0, jumpCanvas.height);
+  grad.addColorStop(0, '#cce7ff');
+  grad.addColorStop(1, '#fff0f5');
+  jctx.fillStyle = grad;
+  jctx.fillRect(0, 0, jumpCanvas.width, jumpCanvas.height);
+
+  // 雲
+  jctx.fillStyle = '#fff';
+  s.clouds.forEach(c => {
+    jctx.beginPath();
+    jctx.arc(c.x, c.y, 18, 0, Math.PI*2);
+    jctx.arc(c.x+18, c.y, 22, 0, Math.PI*2);
+    jctx.arc(c.x+38, c.y, 16, 0, Math.PI*2);
+    jctx.fill();
+  });
+
+  // 地面
+  jctx.fillStyle = '#c5f0d4';
+  jctx.fillRect(0, s.groundY, jumpCanvas.width, jumpCanvas.height - s.groundY);
+  jctx.fillStyle = '#8bce9c';
+  const offset = -(s.distance * s.speed) % 40;
+  for (let i = 0; i < jumpCanvas.width / 40 + 2; i++) {
+    jctx.fillRect(i * 40 + offset, s.groundY - 2, 20, 4);
+  }
+
+  // 障礙
+  jctx.font = '36px serif';
+  jctx.textAlign = 'center';
+  jctx.textBaseline = 'middle';
+  s.obstacles.forEach(o => jctx.fillText(o.emoji, o.x, o.y));
+
+  // 貓咪 (跑動效果用上下擺動，水平翻轉讓牠面朝右)
+  jctx.font = '44px serif';
+  const bob = s.cat.jumping ? 0 : Math.sin(s.distance * 0.4) * 2;
+  jctx.save();
+  jctx.translate(s.cat.x, s.cat.y + bob);
+  jctx.scale(-1, 1);
+  jctx.fillText('🐈', 0, 0);
+  jctx.restore();
+
+  document.getElementById('jumpScore').textContent = s.distance;
+
+  requestAnimationFrame(jumpLoop);
+}
+
+function jumpGameOver() {
+  jumpState.running = false;
+  const best = saveBest('jumpBest', jumpState.distance);
+  document.getElementById('jumpFinal').textContent = jumpState.distance;
+  document.getElementById('jumpBestFinal').textContent = best;
+  document.getElementById('jumpOver').classList.add('show');
+}
+
+/* ========== 4. 找出貓咪 (記憶配對) ========== */
+const memCats = ['😺','😸','😹','😻','😼','😽','🙀','😿'];
+let memState = null;
+
+function startMemoryGame() {
+  closeAllOverlays();
+  // 8 對 = 16 張
+  const deck = [...memCats, ...memCats]
+    .map(c => ({ emoji: c, flipped: false, matched: false }))
+    .sort(() => Math.random() - 0.5);
+  memState = { deck, first: null, second: null, locked: false, moves: 0, matched: 0 };
+  document.getElementById('memMoves').textContent = '0';
+  document.getElementById('memMatched').textContent = '0';
+  renderMem();
+}
+
+function renderMem() {
+  const grid = document.getElementById('memGrid');
+  grid.innerHTML = '';
+  memState.deck.forEach((card, i) => {
+    const el = document.createElement('div');
+    el.className = 'mem-card';
+    if (card.flipped) el.classList.add('flipped');
+    if (card.matched) el.classList.add('matched');
+    el.innerHTML = `<span class="face">${card.emoji}</span>`;
+    el.onclick = () => flipCard(i);
+    grid.appendChild(el);
+  });
+}
+
+function flipCard(i) {
+  if (memState.locked) return;
+  const card = memState.deck[i];
+  if (card.flipped || card.matched) return;
+
+  card.flipped = true;
+  renderMem();
+
+  if (!memState.first) {
+    memState.first = i;
+  } else if (!memState.second && i !== memState.first) {
+    memState.second = i;
+    memState.moves++;
+    document.getElementById('memMoves').textContent = memState.moves;
+    memState.locked = true;
+    setTimeout(checkMatch, 700);
+  }
+}
+
+function checkMatch() {
+  const a = memState.deck[memState.first];
+  const b = memState.deck[memState.second];
+  if (a.emoji === b.emoji) {
+    a.matched = true; b.matched = true;
+    memState.matched++;
+    document.getElementById('memMatched').textContent = memState.matched;
+    if (memState.matched === 8) {
+      setTimeout(memWin, 400);
+    }
+  } else {
+    a.flipped = false; b.flipped = false;
+  }
+  memState.first = null;
+  memState.second = null;
+  memState.locked = false;
+  renderMem();
+}
+
+function memWin() {
+  const cur = +(localStorage.getItem('memBest') || 999);
+  const isBest = memState.moves < cur;
+  if (isBest) localStorage.setItem('memBest', memState.moves);
+  const best = +(localStorage.getItem('memBest'));
+  document.getElementById('memFinalMoves').textContent = memState.moves;
+  document.getElementById('memBest').textContent = best;
+  document.getElementById('memOver').classList.add('show');
+}
+
+</script>
+</body>
+</html>
