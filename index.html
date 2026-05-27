@@ -258,7 +258,6 @@
     display: block;
     transform: rotateY(180deg);
   }
-  .mem-card.matched .face { transform: none; }
   .mem-card:not(.flipped):not(.matched):hover {
     background: #ff5e8a;
   }
@@ -553,11 +552,11 @@ function feedLoop() {
         for (let k = 0; k < 10; k++) {
           s.sparkles.push({ x: it.x, y: it.y, vx: (Math.random()-0.5)*5, vy: -Math.random()*3-1, life: 30, color: '#888' });
         }
-        if (s.lives <= 0) return feedGameOver();
       }
       document.getElementById('feedScore').textContent = s.score;
       document.getElementById('feedLives').textContent = s.lives;
       s.items.splice(i, 1);
+      if (s.lives <= 0) return feedGameOver();
     } else if (it.y > feedCanvas.height + 30) {
       s.items.splice(i, 1);
     }
@@ -632,12 +631,12 @@ function feedGameOver() {
 /* ========== 2. 撫摸貓咪 ========== */
 const cats = [
   { emoji: '🐱', name: '小花', cost: 0 },
-  { emoji: '😺', name: '阿橘', cost: 100 },
-  { emoji: '😸', name: '咪咪', cost: 500 },
+  { emoji: '🐈', name: '咪咪', cost: 100 },
+  { emoji: '😺', name: '阿橘', cost: 500 },
   { emoji: '😻', name: '愛心醬', cost: 2000 },
-  { emoji: '🙀', name: '驚訝弟', cost: 5000 },
-  { emoji: '😼', name: '壞壞', cost: 15000 },
-  { emoji: '😽', name: '親親妹', cost: 40000 },
+  { emoji: '😼', name: '壞壞', cost: 5000 },
+  { emoji: '🦁', name: '獅王', cost: 15000 },
+  { emoji: '🐯', name: '大虎', cost: 40000 },
   { emoji: '🐈‍⬛', name: '小黑', cost: 100000 },
 ];
 let petData = null;
@@ -756,6 +755,7 @@ function formatNum(n) {
 const jumpCanvas = document.getElementById('jumpCanvas');
 const jctx = jumpCanvas.getContext('2d');
 let jumpState = null;
+let jumpLastTime = 0;
 
 function startJumpGame() {
   closeAllOverlays();
@@ -763,12 +763,13 @@ function startJumpGame() {
     cat: { x: 80, y: jumpCanvas.height - 60, vy: 0, jumping: false, jumpsLeft: 2 },
     obstacles: [],
     clouds: [{x:100,y:50},{x:350,y:80},{x:600,y:40}],
-    speed: 6,
+    speed: 3,
     distance: 0,
-    spawnTimer: 60,
+    spawnTimer: 120,
     running: true,
     groundY: jumpCanvas.height - 40
   };
+  jumpLastTime = 0;
   document.getElementById('jumpScore').textContent = '0';
   document.getElementById('jumpBest').textContent = getBest('jumpBest');
   requestAnimationFrame(jumpLoop);
@@ -786,6 +787,7 @@ function doJump() {
 window.addEventListener('keydown', e => {
   if (e.code === 'Space' && jumpState && jumpState.running) {
     e.preventDefault();
+    if (e.repeat) return;
     doJump();
   }
 });
@@ -794,16 +796,21 @@ jumpCanvas.addEventListener('touchstart', e => { e.preventDefault(); doJump(); }
 
 const obstacleEmojis = ['📦', '🪴', '🌵', '🗑️', '🧱'];
 
-function jumpLoop() {
+function jumpLoop(now) {
   if (!jumpState || !jumpState.running) return;
   const s = jumpState;
 
-  s.distance++;
-  s.speed = 6 + s.distance * 0.002;
+  // 以 60fps 為基準計算時間倍率，讓不同螢幕跑一樣快
+  if (!jumpLastTime) jumpLastTime = now;
+  const dt = Math.min((now - jumpLastTime) / 16.67, 2);
+  jumpLastTime = now;
+
+  s.distance += dt;
+  s.speed = Math.min(11, 3 + s.distance * 0.005);
 
   // 貓咪物理
-  s.cat.vy += 0.6;
-  s.cat.y += s.cat.vy;
+  s.cat.vy += 0.6 * dt;
+  s.cat.y += s.cat.vy * dt;
   if (s.cat.y >= s.groundY - 30) {
     s.cat.y = s.groundY - 30;
     s.cat.vy = 0;
@@ -812,7 +819,7 @@ function jumpLoop() {
   }
 
   // 生成障礙
-  s.spawnTimer--;
+  s.spawnTimer -= dt;
   if (s.spawnTimer <= 0) {
     s.obstacles.push({
       x: jumpCanvas.width + 20,
@@ -826,7 +833,7 @@ function jumpLoop() {
   // 更新障礙 & 碰撞
   for (let i = s.obstacles.length - 1; i >= 0; i--) {
     const o = s.obstacles[i];
-    o.x -= s.speed;
+    o.x -= s.speed * dt;
     if (o.x < -50) { s.obstacles.splice(i, 1); continue; }
     // 碰撞 (簡化矩形)
     const cx = s.cat.x, cy = s.cat.y;
@@ -837,7 +844,7 @@ function jumpLoop() {
 
   // 雲朵
   s.clouds.forEach(c => {
-    c.x -= s.speed * 0.3;
+    c.x -= s.speed * 0.3 * dt;
     if (c.x < -50) c.x = jumpCanvas.width + 50;
   });
 
@@ -885,15 +892,16 @@ function jumpLoop() {
   jctx.fillText('🐈', 0, 0);
   jctx.restore();
 
-  document.getElementById('jumpScore').textContent = s.distance;
+  document.getElementById('jumpScore').textContent = Math.floor(s.distance);
 
   requestAnimationFrame(jumpLoop);
 }
 
 function jumpGameOver() {
   jumpState.running = false;
-  const best = saveBest('jumpBest', jumpState.distance);
-  document.getElementById('jumpFinal').textContent = jumpState.distance;
+  const finalDist = Math.floor(jumpState.distance);
+  const best = saveBest('jumpBest', finalDist);
+  document.getElementById('jumpFinal').textContent = finalDist;
   document.getElementById('jumpBestFinal').textContent = best;
   document.getElementById('jumpOver').classList.add('show');
 }
@@ -936,9 +944,9 @@ function flipCard(i) {
   card.flipped = true;
   renderMem();
 
-  if (!memState.first) {
+  if (memState.first === null) {
     memState.first = i;
-  } else if (!memState.second && i !== memState.first) {
+  } else if (memState.second === null && i !== memState.first) {
     memState.second = i;
     memState.moves++;
     document.getElementById('memMoves').textContent = memState.moves;
